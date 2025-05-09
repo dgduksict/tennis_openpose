@@ -1,0 +1,30 @@
+# Core dependencies
+tensorflow==2.12.0
+torch>=1.7.0,<=2.0.0  # Using earlier PyTorch version to avoid weights_only security changes
+torchvision>=0.8.1,<=0.15.1
+numpy
+opencv-python
+matplotlib
+pillow
+PyYAML
+tqdm
+scipy
+
+# Video processing
+moviepy
+pafy
+youtube_dl
+
+# Additional utilities
+gdown==v4.6.3  # Google Drive download
+pandas
+seaborn
+psutil  # System utilization
+thop  # FLOPs calculation
+
+# Optional dependencies
+ipython  # Interactive development
+tensorboard  # Visualization
+
+# If you're using CUDA
+# cudatoolkit==11.1
