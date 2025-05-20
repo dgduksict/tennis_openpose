@@ -3,6 +3,10 @@ from pathlib import Path
 import pandas as pd
 import cv2
 import os
+import mediapipe as mp
+
+#Suppress TensorFlow oneDNN warnings
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 # Key bindings for your shot classes
 W_KEY = ord('w')  # Forehand-Volley
@@ -15,14 +19,20 @@ def annotate_video(video_path, output_dir):
     """
     Annotate a tennis video with shot types and save to a CSV in the specified output directory.
     Press:
-    - RIGHT_ARROW: Forehand-GS
-    - LEFT_ARROW: Backhand-GS
-    - UP_ARROW: Forehand-Volley
-    - DOWN_ARROW: Backhand-Volley
+    - W: Forehand-Volley
+    - A: Backhand-GS
+    - S: Backhand-Volley
+    - D: Forehand-GS
     - Esc: Exit
     """
+
     # Ensure output directory exists
     os.makedirs(output_dir, exist_ok=True)
+
+    # Initialize MediaPipe Pose
+    mp_drawing = mp.solutions.drawing_utils
+    mp_pose = mp.solutions.pose
+    pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
 
     # Open video
     cap = cv2.VideoCapture(video_path)
@@ -30,52 +40,53 @@ def annotate_video(video_path, output_dir):
         print(f"Error: Could not open video {video_path}")
         return
 
-    # Initialize DataFrame
-    df = pd.DataFrame(columns=["Shot", "FrameId"])
+    # Initialize annotation list
     annotations = []
     frame_id = 0
 
-    print("Annotating video. Press F, B, V, N for shots, Esc to exit.")
+    print("Annotating video. Press W, A, S, D for shots. Esc to exit.")
 
-    # Process video frames
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
 
-        # Display frame with instructions
+        # Convert frame to RGB and process with MediaPipe
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = pose.process(rgb_frame)
+
+        # Draw pose landmarks
+        if results.pose_landmarks:
+            mp_drawing.draw_landmarks(
+                frame,
+                results.pose_landmarks,
+                mp_pose.POSE_CONNECTIONS,
+                mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=2),
+                mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=2)
+            )
+
+        # Display instructions
         cv2.putText(frame, "W: Forehand-Volley  A: Backhand-GS  S: Backhand-Volley  D: Forehand-GS",
-            (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+
         cv2.imshow("Tennis Shot Annotation", frame)
 
         # Wait for key press
         k = cv2.waitKey(30)
 
-        # Record annotations
+        # Annotate based on key press
         if k == D_KEY:
             annotations.append({"Shot": "forehand-gs", "FrameId": frame_id})
             print(f"Annotated Forehand-GS at frame {frame_id}")
-            cv2.putText(frame, "Forehand-GS", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            cv2.imshow("Tennis Shot Annotation", frame)
-            cv2.waitKey(100)
         elif k == A_KEY:
             annotations.append({"Shot": "backhand-gs", "FrameId": frame_id})
             print(f"Annotated Backhand-GS at frame {frame_id}")
-            cv2.putText(frame, "Backhand-GS", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            cv2.imshow("Tennis Shot Annotation", frame)
-            cv2.waitKey(100)
         elif k == W_KEY:
             annotations.append({"Shot": "forehand-volley", "FrameId": frame_id})
             print(f"Annotated Forehand-Volley at frame {frame_id}")
-            cv2.putText(frame, "Forehand-Volley", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            cv2.imshow("Tennis Shot Annotation", frame)
-            cv2.waitKey(100)
         elif k == S_KEY:
             annotations.append({"Shot": "backhand-volley", "FrameId": frame_id})
             print(f"Annotated Backhand-Volley at frame {frame_id}")
-            cv2.putText(frame, "Backhand-Volley", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            cv2.imshow("Tennis Shot Annotation", frame)
-            cv2.waitKey(100)
         elif k == ESC_KEY:
             print("Annotation completed.")
             break
@@ -93,6 +104,7 @@ def annotate_video(video_path, output_dir):
 
     # Cleanup
     cap.release()
+    pose.close()
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":
