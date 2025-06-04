@@ -1,7 +1,8 @@
-node_modules
-dump
-tennisApp
-videos
-output
-v1
-flutter
+node_modules/
+dump/
+tennisApp/
+output/
+v1/
+flutter/
+videos/
+*.mp4
